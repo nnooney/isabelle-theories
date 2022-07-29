@@ -1,4 +1,4 @@
-theory "concrete-semantics"
+theory "chapter2"
   imports Main
 begin
 
@@ -14,33 +14,33 @@ fun add :: "nat \<Rightarrow> nat \<Rightarrow> nat" where
  "add (Suc m) n = Suc(add m n)"
 
 theorem add_assoc [simp]: "add (add x y) z = add x (add y z)"
-  apply(induction x)
-   apply(auto)
-  done
+  apply (induction x)
+  apply auto
+done
 
 lemma add_zero2 [simp]: "add x 0 = x"
-  apply(induction x)
-   apply(auto)
-  done
+  apply (induction x)
+  apply auto
+done
 
 lemma add_suc2 [simp]: "add x (Suc y) = Suc(add x y)"
-  apply(induction x)
-   apply(auto)
-  done
+  apply (induction x)
+  apply auto
+done
 
 theorem add_commut [simp]: "add x y = add y x"
-  apply(induction x)
-   apply(auto)
-  done
+  apply (induction x)
+  apply auto
+done
 
 fun double :: "nat \<Rightarrow> nat" where
  "double 0 = 0" |
  "double (Suc n) = Suc(Suc(double n))"
 
 theorem double_add [simp]: "double x = add x x"
-  apply(induction x)
-   apply(auto)
-  done
+  apply (induction x)
+  apply auto
+done
 
 (* 2.3 *)
 fun count :: "'a \<Rightarrow> 'a list \<Rightarrow> nat" where
@@ -52,9 +52,9 @@ fun count :: "'a \<Rightarrow> 'a list \<Rightarrow> nat" where
 *)
 
 theorem count_length [simp]: "count x xs \<le> length xs"
-  apply(induction xs)
-   apply(auto)
-  done
+  apply (induction xs)
+  apply auto
+done
 
 (* 2.4 *)
 fun snoc :: "'a list \<Rightarrow> 'a \<Rightarrow> 'a list" where
@@ -77,14 +77,14 @@ Evaluated terms:
 
 (* don't forget [simp] for later lemma/theorems! *)
 lemma rev_snoc [simp]: "reverse (snoc xs x) =  x # reverse xs"
-  apply(induction xs)
-   apply(auto)
-  done
+  apply (induction xs)
+  apply auto
+done
 
 theorem rev_rev [simp]: "reverse (reverse xs) = xs"
-  apply(induction xs)
-   apply(auto)
-  done
+  apply (induction xs)
+  apply auto
+done
 
 (* 2.5 *)
 fun sum_upto :: "nat \<Rightarrow> nat" where
@@ -92,9 +92,26 @@ fun sum_upto :: "nat \<Rightarrow> nat" where
  "sum_upto (Suc n) = (Suc n) + sum_upto n"
 
 theorem sum_formula [simp]: "sum_upto x = x * (x + 1) div 2"
-  apply(induction x)
-   apply(auto)
-  done
+  apply (induction x)
+  apply auto
+done
+
+(* 2.6 *)
+datatype 'a tree = Tip | Node "'a tree" 'a "'a tree"
+
+(* list @ list or elem # list *)
+fun contents :: "'a tree \<Rightarrow> 'a list" where
+ "contents Tip = []" |
+ "contents (Node l a r) =  a # (contents l) @ (contents r)"
+
+fun sum_tree :: "nat tree \<Rightarrow> nat" where
+ "sum_tree Tip = 0" |
+ "sum_tree (Node l a r) = (sum_tree l) + a + (sum_tree r)"
+
+theorem sum_tree_list [simp]: "sum_tree t = sum_list (contents t)"
+  apply (induction t)
+  apply auto
+done
 
 
 end
