@@ -113,5 +113,208 @@ theorem sum_tree_list [simp]: "sum_tree t = sum_list (contents t)"
   apply auto
 done
 
+(* 2.7 *)
+fun preorder :: "'a tree \<Rightarrow> 'a list" where
+ "preorder Tip = []" |
+ "preorder (Node l a r) = a # (preorder l) @ (preorder r)"
+
+fun postorder :: "'a tree \<Rightarrow> 'a list" where
+ "postorder Tip = []" |
+ "postorder (Node l a r) = (postorder l) @ (postorder r) @ [a]"
+
+(* 
+theorem fails to prove but doesn't complain with
+preorder (Node l a r) = (preorder l) @ (preorder r)
+postorder (Node l a r) = (postorder r) @ (postorder l)
+
+I'm forgetting to include the "a" part of a node, but interesting
+that I don't get a counter-example (because an empty list is
+equal to an empty list).
+
+after induction on t and apply auto, left with this goal.
+goal (1 subgoal):
+ 1. \<And>t1 t2.
+       preorder (mirror t1) = rev (postorder t1) \<Longrightarrow>
+       preorder (mirror t2) = rev (postorder t2) \<Longrightarrow>
+       rev (postorder t2) @ rev (postorder t1) =
+       rev (postorder t1) @ rev (postorder t2
+*)
+
+fun mirror :: "'a tree \<Rightarrow> 'a tree" where
+ "mirror Tip = Tip" |
+ "mirror (Node l a r ) = Node (mirror r ) a (mirror l)"
+
+theorem mirror_ordering [simp]: "preorder (mirror t) = rev (postorder t)"
+  apply (induction t)
+  apply auto
+done
+
+(* 2.8 *)
+fun intersperse :: "'a \<Rightarrow> 'a list \<Rightarrow> 'a list" where
+ "intersperse a [] = []" |
+ "intersperse a (x # xs) = (x # [a]) @ (intersperse a xs)"
+
+(* 
+Applying a function to an interspersed list is the same as applying the function
+to the elements, then interspersing.
+*)
+theorem intersperse_over_map [simp]: "map f (intersperse a xs) = intersperse (f a) (map f xs)"
+  apply (induction xs)
+  apply auto
+done
+
+(* 2.9 *)
+
+(* How do I identify that a function is tail-recursive? 
+The only difference between this and add is where the Suc goes. 
+
+Ah, the example says "in the recursive case, itadd needs to call
+itself directly". So no shenanigans on the outermost expression. *)
+fun itadd :: "nat \<Rightarrow> nat \<Rightarrow> nat" where
+ "itadd 0 n = n" |
+ "itadd (Suc m) n = itadd m (Suc n)"
+
+theorem itadd_is_add [simp]: "itadd m n = add m n"
+(* Fancy argument sorcery? Why include a colon? *)
+  apply (induction m arbitrary: n)
+  apply auto
+done
+
+(* So now I'm told not to litter [simp] everywhere, only for
+actual simplifying equations, at risk of exponential blow up! *)
+
+(* 2.10 *)
+datatype tree0 = Tip | Node tree0 tree0
+
+fun nodes :: "tree0 \<Rightarrow> nat" where
+ "nodes Tip = 1" |
+ "nodes (Node l r) = 1 + (nodes l) + (nodes r)"
+
+fun explode :: "nat \<Rightarrow> tree0 \<Rightarrow> tree0" where
+ "explode 0 t = t" |
+ "explode (Suc n) t = explode n (Node t t)"
+
+(* create 2^n copies of t and then 2^n-1 nodes to connect all the
+   copies *)
+theorem explode_size: "nodes (explode n t) = 2 ^ n * nodes t + 2 ^ n - 1"
+  apply (induction n arbitrary: t)
+  (* boost auto with the algebra_simps deduction *)
+  apply (auto simp add: algebra_simps)
+done
+
+(* 2.11 *)
+datatype exp = Var | Const int | Add exp exp | Mult exp exp
+
+fun eval :: "exp \<Rightarrow> int \<Rightarrow> int" where
+ "eval Var n = n" |
+ "eval (Const x) n = x" |
+ "eval (Add x y) n = (eval x n) + (eval y n)" |
+ "eval (Mult x y) n = (eval x n) * (eval y n)"
+
+fun evalp :: "int list \<Rightarrow> int \<Rightarrow> int" where
+ "evalp [] n = 0" |
+ "evalp (x # xs) n = x + n * (evalp xs n)"
+
+(* sum corresponding indices of lists *)
+fun elem_sum :: "int list \<Rightarrow> int list \<Rightarrow> int list" where
+ "elem_sum [] y = y" |
+ "elem_sum x [] = x" |
+ "elem_sum (x # xs) (y # ys) = (x + y) # elem_sum xs ys"
+
+(* multiply each index by n *)
+fun scalar_mult :: "int  \<Rightarrow> int list \<Rightarrow> int list" where
+ "scalar_mult k [] = []" |
+ "scalar_mult k (x # xs) = (k * x) # scalar_mult k xs"
+
+(* shift and multiply *)
+fun poly_mult :: "int list \<Rightarrow> int list \<Rightarrow> int list" where
+ "poly_mult [] ys = []" |
+ "poly_mult (x # xs) ys = elem_sum (scalar_mult x ys) (poly_mult xs (0 # ys))"
+
+fun coeffs :: "exp \<Rightarrow> int list" where
+ "coeffs Var = [0, 1]" |
+ "coeffs (Const x) = [x]" |
+ "coeffs (Add x y) = elem_sum (coeffs x) (coeffs y)" |
+ "coeffs (Mult x y) = poly_mult (coeffs x) (coeffs y)"
+
+lemma evalp_elem_sum [simp]: "evalp (elem_sum xs ys) n = evalp xs n + evalp ys n"
+  apply (induction rule: elem_sum.induct)
+  apply (auto simp add: algebra_simps)
+done
+
+lemma evalp_scalar_mult [simp]: "evalp (scalar_mult k xs) n = k * evalp xs n"
+  (* Doesn't work with
+  apply (induction rule: scalar_mult.induct) *)
+  apply (induction xs arbitrary:k)
+  apply (auto simp add: algebra_simps)
+done
+
+lemma evalp_poly_mult [simp]: "evalp (poly_mult xs ys) n = evalp xs n * evalp ys n"
+  apply (induction rule: poly_mult.induct)
+  apply (auto simp add: algebra_simps)
+done
+
+theorem coeffs_preserves_eval: "evalp (coeffs e) x = eval e x"
+  apply (induction e)
+  apply auto
+done
+
+(*
+Function writing through counter-examples:
+
+Problem 1:
+Auto Quickcheck found a counterexample:
+  e = Var
+  x = - 1
+Evaluated terms:
+  evalp (coeffs e) x = 1
+  eval e x = - 1
+My investigation:
+  culprit: "evalp (x # xs) n = n * x + n * (evalp xs n)"
+  example: 
+    "evalp [0, 1]" expands to 
+    "(n * 0 + n * (n * 1 + n * (0)))"; simplifies to
+    "n^2"
+  reason: I have too many n's in my definition.
+  fix: "evalp (x # xs) n = x + n * (evalp xs n)"
+
+Problem 2:
+Auto Quickcheck found a counterexample:
+  e = Add Var Var
+  x = - 2
+Evaluated terms:
+  evalp (coeffs e) x = 0
+  eval e x = - 4
+My investigation:
+  cool, the counterexample is using add; I must have the Var and
+  Const cases right. Back in math class, adding polynomials is
+  the same as adding matching coefficients, so write elem_sum.
+
+Problem 3:
+Auto Quickcheck found a counterexample:
+  e = Mult Var Var
+  x = - 2
+Evaluated terms:
+  evalp (coeffs e) x = 0
+  eval e x = 4
+My investigation:
+  cool, the counterexample is using mult; I must have Add right.
+  Back in math class, multiplying polynomials requires some
+  FOIL-ing. Right shift N and multiply by index N. Write
+  scalar_mult and poly_mult.
+
+No more problems, time to prove. Apply auto doesn't work. Onto
+the lemmas:
+
+Lemma 1: "evalp (elem_sum xs ys) n = evalp xs n + evalp ys n"
+
+Lemma 2: "evalp (poly_mult xs ys) n = evalp xs n * evalp ys n
+  requires a scalar_mult lemma
+
+Lemma 1.5: "evalp (scalar_mult k xs) n = k * evalp xs n"
+  for some reason, this doesn't solve when using rule:scalar_mult.induct
+
+After the lemmas are in place, the theorem is proved with 
+*)
 
 end
