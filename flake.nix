@@ -11,7 +11,7 @@
       let 
         pkgs = import nixpkgs { inherit system; };
       in {
-        devShells = pkgs.mkShell {
+        devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
             isabelle
           ];
