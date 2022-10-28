@@ -66,6 +66,88 @@ theorem asimp_const_optimal: "optimal (asimp_const a)"
   done
 
 (* 3.2 *)
+fun var_aexp :: "aexp \<Rightarrow> aexp option" where
+  "var_aexp (N n) = None" |
+  "var_aexp (V x) = Some (V x)" |
+  "var_aexp (Plus a1 a2) =
+    (case (var_aexp a1, var_aexp a2) of
+      (None, None) \<Rightarrow> None |
+      (Some b1, None) \<Rightarrow> Some b1 |
+      (None, Some b2) \<Rightarrow> Some b2 |
+      (Some b1, Some b2) \<Rightarrow> Some (Plus b1 b2))"
+
+fun fold_consts :: "aexp \<Rightarrow> aexp option" where
+  "fold_consts (N n) = Some (N n)" |
+  "fold_consts (V x) = None" |
+  "fold_consts (Plus a1 a2) = 
+    (case (fold_consts a1, fold_consts a2) of
+      (None, None) \<Rightarrow> None |
+      (Some (N n1), None) \<Rightarrow> Some (N n1) |
+      (None, Some (N n2)) \<Rightarrow> Some (N n2) |
+      (Some (N n1), Some (N n2)) \<Rightarrow> Some (N (n1 + n2)))"
+
+lemma "var_aexp a = None \<Longrightarrow> fold_consts a \<noteq> None"
+  apply (induction a)
+  apply auto
+  apply (case_tac "var_aexp a1", case_tac "var_aexp a2")
+  apply auto
+  oops
+
+(*
+proof (prove)
+goal (2 subgoals):
+ 1. \<And>a1 a2 y ya.
+       var_aexp a1 = None \<Longrightarrow>
+       var_aexp a2 = None \<Longrightarrow>
+       fold_consts a1 = Some y \<Longrightarrow>
+       fold_consts a2 = Some ya \<Longrightarrow>
+       \<exists>ya. (case y of
+             N n1 \<Rightarrow>
+               case fold_consts a2 of None \<Rightarrow> Some (N n1)
+               | Some (N n2) \<Rightarrow> Some (N (n1 + n2))) =
+            Some ya
+ 2. \<And>a1 a2 a.
+       (var_aexp a2 = None \<Longrightarrow> \<exists>y. fold_consts a2 = Some y) \<Longrightarrow>
+       (case var_aexp a2 of None \<Rightarrow> Some a | Some b2 \<Rightarrow> Some (Plus a b2)) = None \<Longrightarrow>
+       var_aexp a1 = Some a \<Longrightarrow>
+       \<exists>y. (case fold_consts a1 of
+            None \<Rightarrow> case fold_consts a2 of None \<Rightarrow> None | Some (N n2) \<Rightarrow> Some (N n2)
+            | Some (N n1) \<Rightarrow>
+                case fold_consts a2 of None \<Rightarrow> Some (N n1)
+                | Some (N n2) \<Rightarrow> Some (N (n1 + n2))) =
+           Some y
+*)
+
+lemma "fold_consts a = None \<Longrightarrow> var_aexp a \<noteq> None"
+  oops
+
+lemma "var_aexp a = None \<Longrightarrow> fold_consts a = None \<Longrightarrow> False"
+  apply (induction a)
+  oops
+
+(* Acts like Plus but handles optional aexps *)
+fun merge_aexps :: "aexp option \<Rightarrow> aexp option \<Rightarrow> aexp" where
+  "merge_aexps None None = (N 0)" |
+  "merge_aexps None (Some n) = n" |
+  "merge_aexps (Some a) None = a" |
+  "merge_aexps (Some a) (Some n) = Plus a n"
+
+lemma "aval a s = aval (merge_aexps (var_aexp a) (fold_consts a)) s"
+  apply (induction a)
+  apply auto
+  oops
+
+fun full_asimp :: "aexp \<Rightarrow> aexp" where
+  "full_asimp (N n) = N n" |
+  "full_asimp (V x) = V x" |
+  "full_asimp (Plus a1 a2) = merge_aexps (var_aexp (Plus a1 a2)) (fold_consts (Plus a1 a2))"
+
+lemma "aval (full_asimp a) s = aval a s"
+  apply (induction a)
+  apply (auto split: aexp.split)
+  oops
+
+(*
 fun full_plus :: "aexp \<Rightarrow> aexp \<Rightarrow> aexp" where
   (* Ways to combine two constants *)
   "full_plus (N n1) (N n2) = N (n1 + n2)" |
@@ -97,6 +179,7 @@ lemma "aval (full_asimp a) s = aval a s"
   apply (induction a)
   apply (auto simp: aval_full_plus)
   done
+*)
 
 (* Great, we preserved that it doesn't change evaluation, but can we
   prove that it's also optimal?  *)
